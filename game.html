@@ -1,0 +1,45 @@
+<html>
+<head>
+	<title></title>
+	<link rel="stylesheet" type="text/css" href="jeuxjs.css">
+	<meta charset="utf-8">
+</head>
+<body>
+	<div class="gamezone">
+		<div class="con">
+			<button id="play">play</button>
+		</div>
+		<div class="won" id="won">
+			<span id="d">You</span>
+			<span id="qs">Won !!!</span>
+			<div id="finalScoreWin"></div>
+			<a href="game.html">restart</a>
+		</div>
+		<div class="won" id="lose">
+			<span id="d">game</span>
+			<span id="qs">over</span>
+			<div id="finalScoreLost"></div>
+			<a href="game.html">restart</a>
+		</div>
+		<span class="line" id="line1"></span>
+		<span class="line" id="line22"></span>
+		<div class="weapon"><div class="weapon-body"></div></div>
+	</div>
+	<span class="score" id="scores">0</span>
+	<div class="dashboard">
+		<span class="life"><span id="n">life : </span><span id="lifeState">1</span></span><br>
+		<span class=""><span id="n">targets : </span><span id="targetsLength"></span></span><br>
+		<hr>
+		<span class="br"><b>targets left : </b><span id="dsph"></span></span><br>
+		<span class="br"><b>rotatation angle : </b><span id="displayAngle"></span></span><br>
+		<span class="br"><b>maximal roation angle : </b>45°</span><br>
+		<span class="br"><b>balls : </b><span id="infinteLife">xxxx</span></span><br>
+		<span class="br" id='h'><b>difficult level :<b><br><span class="easy niv">easy</span>
+								<span class="med niv">medium</span>
+								<span class="hard niv">hard</span>
+		</span>
+	</div>
+	<div id="finals"></div>
+	<script src="jeuxjavascript.js"></script>
+</body>
+</html>
