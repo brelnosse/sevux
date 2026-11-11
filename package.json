@@ -1,0 +1,13 @@
+{
+  "name": "sevux",
+  "private": true,
+  "type": "module",
+  "description": "Mini-jeu de tir en canvas, avec classement en ligne (Netlify Functions + Blobs).",
+  "scripts": {
+    "dev": "node dev-server.mjs",
+    "test": "node --test lib/leaderboard.test.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "11.1.7"
+  }
+}

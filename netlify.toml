@@ -1,4 +1,11 @@
+[build]
+publish = "public"
+
+[functions]
+directory = "netlify/functions"
+node_bundler = "esbuild"
+
 [[redirects]]
-from="/*"
-to="/index.html"
-status=200
+from = "/*"
+to = "/index.html"
+status = 200
