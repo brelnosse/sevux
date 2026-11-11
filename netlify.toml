@@ -1,4 +1,21 @@
+[build]
+publish = "public"
+
+[functions]
+directory = "netlify/functions"
+node_bundler = "esbuild"
+
 [[redirects]]
-from="/*"
-to="/index.html"
-status=200
+from = "/*"
+to = "/index.html"
+status = 200
+
+# En-têtes de sécurité de la page du jeu (l'API définit les siens).
+# Pas de frame-ancestors : le portfolio doit pouvoir intégrer le jeu dans une iframe.
+[[headers]]
+for = "/*"
+[headers.values]
+Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+X-Content-Type-Options = "nosniff"
+Referrer-Policy = "strict-origin-when-cross-origin"
+Permissions-Policy = "camera=(), microphone=(), geolocation=()"
