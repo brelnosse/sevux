@@ -35,6 +35,7 @@ Tu contrôles une tourelle en bas de l'écran. Une vague de 10 cibles descend : 
 - **Pools d'objets** pour les balles et les particules : aucune allocation pendant le jeu.
 - **Collisions cercle-cercle** calculées en mémoire, sans aucune lecture du DOM.
 - **Aucun asset** : graphismes et sons sont générés par le code, rien à télécharger à part les polices.
+- **Modules ES natifs** (`<script type="module">`), sans outil de build. Aucun fichier ne dépasse 500 lignes.
 
 ## Classement en ligne
 
@@ -101,6 +102,16 @@ window.addEventListener('message', (event) => {
 
 ```
 public/                    le jeu (dossier publié par Netlify)
+  index.html, jeuxjs.css
+  js/main.js               point d'entrée : boucle, menus, contrôles
+  js/config.js             constantes, réglages partagés, stockage local
+  js/dom.js                références vers la page
+  js/state.js              état de la partie, pools d'objets, effets
+  js/logic.js              règles : tir, collisions, vagues, boss
+  js/render.js             rendu canvas et interface en jeu
+  js/sprites.js            sprites pré-rendus et redimensionnement
+  js/audio.js              sons synthétisés (Web Audio)
+  js/leaderboard.js        classement en ligne côté jeu
 netlify/functions/         API du classement
 lib/leaderboard.mjs        validation, tri et sécurité, partagés entre l'API et le serveur local
 lib/leaderboard.test.mjs   tests de l'API
