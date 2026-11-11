@@ -1,45 +1,64 @@
-<html>
+<!doctype html>
+<html lang="fr">
 <head>
-	<title></title>
-	<link rel="stylesheet" type="text/css" href="jeuxjs.css">
 	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<meta name="theme-color" content="#FFD23F">
+	<title>SEVUX — Défends la zone</title>
+	<meta name="description" content="Mini-jeu de tir : défends la zone contre une vague de cibles puis affronte le boss final.">
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="jeuxjs.css">
 </head>
 <body>
-	<div class="gamezone">
-		<div class="con">
-			<button id="play">play</button>
-		</div>
-		<div class="won" id="won">
-			<span id="d">You</span>
-			<span id="qs">Won !!!</span>
-			<div id="finalScoreWin"></div>
-			<a href="game.html">restart</a>
-		</div>
-		<div class="won" id="lose">
-			<span id="d">game</span>
-			<span id="qs">over</span>
-			<div id="finalScoreLost"></div>
-			<a href="game.html">restart</a>
-		</div>
-		<span class="line" id="line1"></span>
-		<span class="line" id="line22"></span>
-		<div class="weapon"><div class="weapon-body"></div></div>
-	</div>
-	<span class="score" id="scores">0</span>
-	<div class="dashboard">
-		<span class="life"><span id="n">life : </span><span id="lifeState">1</span></span><br>
-		<span class=""><span id="n">targets : </span><span id="targetsLength"></span></span><br>
-		<hr>
-		<span class="br"><b>targets left : </b><span id="dsph"></span></span><br>
-		<span class="br"><b>rotatation angle : </b><span id="displayAngle"></span></span><br>
-		<span class="br"><b>maximal roation angle : </b>45°</span><br>
-		<span class="br"><b>balls : </b><span id="infinteLife">xxxx</span></span><br>
-		<span class="br" id='h'><b>difficult level :<b><br><span class="easy niv">easy</span>
-								<span class="med niv">medium</span>
-								<span class="hard niv">hard</span>
-		</span>
-	</div>
-	<div id="finals"></div>
+	<main id="stage">
+		<canvas id="game" aria-label="Zone de jeu"></canvas>
+
+		<section class="overlay" id="menu">
+			<div class="panel">
+				<span class="sticker">mini-jeu</span>
+				<h1 class="title">SEVUX</h1>
+				<p class="tagline">Défends la zone. Détruis la vague. Abats le boss.</p>
+				<div class="levels" role="radiogroup" aria-label="Difficulté">
+					<button class="level" data-level="easy" role="radio">Facile</button>
+					<button class="level selected" data-level="medium" role="radio">Normal</button>
+					<button class="level" data-level="hard" role="radio">Difficile</button>
+				</div>
+				<button class="btn btn-play" id="play">Jouer</button>
+				<ul class="controls">
+					<li><kbd>←</kbd><kbd>→</kbd> ou souris : viser</li>
+					<li><kbd>↑</kbd><kbd>Espace</kbd> ou clic : tirer</li>
+					<li><kbd>P</kbd> pause &nbsp;·&nbsp; <kbd>M</kbd> son</li>
+				</ul>
+				<p class="best">Record : <b id="bestMenu">0</b></p>
+			</div>
+		</section>
+
+		<section class="overlay hidden" id="pause">
+			<div class="panel">
+				<h2 class="title small">PAUSE</h2>
+				<button class="btn btn-play" id="resume">Reprendre</button>
+				<button class="btn btn-ghost" id="quit">Menu</button>
+			</div>
+		</section>
+
+		<section class="overlay hidden" id="end">
+			<div class="panel">
+				<span class="sticker" id="endSticker">fin de partie</span>
+				<h2 class="title small" id="endTitle">GAME OVER</h2>
+				<div class="stats">
+					<div><span>Score</span><b id="endScore">0</b></div>
+					<div><span>Précision</span><b id="endAcc">0%</b></div>
+					<div><span>Record</span><b id="endBest">0</b></div>
+				</div>
+				<button class="btn btn-play" id="restart">Rejouer</button>
+				<button class="btn btn-ghost" id="toMenu">Changer de difficulté</button>
+			</div>
+		</section>
+
+		<button class="icon-btn" id="mute" aria-label="Couper le son" title="Son (M)">♪</button>
+	</main>
 	<script src="jeuxjavascript.js"></script>
 </body>
 </html>
