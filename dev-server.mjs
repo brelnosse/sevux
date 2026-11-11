@@ -2,13 +2,19 @@
 // Usage : npm run dev  (PORT=5055 par défaut)
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { extname, join, normalize, resolve } from 'node:path';
+import { extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { handleRequest } from './lib/leaderboard.mjs';
 
 const ROOT = resolve(fileURLToPath(new URL('./public/', import.meta.url)));
 const PORT = Number(process.env.PORT) || 5055;
 const TYPES = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon' };
+
+// Mêmes en-têtes qu'en production (netlify.toml), pour repérer en local ce que la CSP bloquerait.
+const SECURITY_HEADERS = {
+	'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
+	'X-Content-Type-Options': 'nosniff',
+};
 
 const memory = new Map();
 const store = {
@@ -31,11 +37,13 @@ createServer(async (req, res) => {
 		res.end(Buffer.from(await response.arrayBuffer()));
 		return;
 	}
-	const path = normalize(join(ROOT, url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname)));
-	const file = path.startsWith(ROOT) ? path : join(ROOT, 'index.html');
+	let requested = 'index.html';
+	try { requested = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname); } catch { /* URL mal encodée */ }
+	const path = normalize(join(ROOT, requested));
+	const file = path.startsWith(ROOT + sep) ? path : join(ROOT, 'index.html');
 	try {
 		const data = await readFile(file);
-		res.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream' });
+		res.writeHead(200, { 'Content-Type': TYPES[extname(file)] ?? 'application/octet-stream', ...SECURITY_HEADERS });
 		res.end(data);
 	} catch {
 		res.writeHead(200, { 'Content-Type': TYPES['.html'] });
