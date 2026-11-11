@@ -11,7 +11,8 @@ export default async (req, context) => {
 	return handleRequest(req, {
 		store,
 		clientId: context.ip ?? req.headers.get('x-nf-client-connection-ip') ?? 'unknown',
-		salt: process.env.SCORES_SALT ?? 'sevux',
+		// optionnel : sinon un sel aléatoire est généré et conservé dans les Blobs
+		salt: process.env.SCORES_SALT,
 	});
 };
 
