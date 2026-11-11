@@ -40,6 +40,8 @@
 		mute: $('mute'), levels: document.querySelectorAll('.level'),
 		bestMenu: $('bestMenu'), endTitle: $('endTitle'), endSticker: $('endSticker'),
 		endScore: $('endScore'), endAcc: $('endAcc'), endBest: $('endBest'),
+		scoreForm: $('scoreForm'), pseudo: $('pseudo'), saveScore: $('saveScore'), formMsg: $('formMsg'),
+		endBoard: $('endBoard'), menuBoard: $('menuBoard'), menuBoardWrap: $('menuBoardWrap'),
 	};
 
 	// ------------------------------------------------------------ stockage (peut être bloqué)
@@ -47,6 +49,96 @@
 		get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
 		set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* navigation privée */ } },
 	};
+
+	// ------------------------------------------------------------ classement en ligne
+	const API = window.SEVUX_API || '/api/scores';
+	const LEVEL_LABEL = { easy: 'Facile', medium: 'Normal', hard: 'Difficile' };
+	const NAME_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N} _.\-]{1,15}$/u;
+	const sameName = (a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }) === 0;
+
+	const leaderboard = {
+		async top(limit) {
+			const res = await fetch(`${API}?limit=${limit}`, { headers: { Accept: 'application/json' } });
+			if (!res.ok) throw new Error(String(res.status));
+			return res.json();
+		},
+		async submit(entry) {
+			const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) });
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok) throw Object.assign(new Error(data.error || 'Erreur serveur.'), { status: res.status });
+			return data;
+		},
+	};
+
+	function renderBoard(list, entries, highlight) {
+		list.replaceChildren(...entries.map((e) => {
+			const li = document.createElement('li');
+			if (highlight && sameName(e.name, highlight)) li.classList.add('me');
+			li.title = `${LEVEL_LABEL[e.level] || ''} · ${e.accuracy}% de précision`;
+			const name = document.createElement('span');
+			name.className = 'name';
+			name.textContent = e.name + (e.won ? ' 👑' : '');
+			const pts = document.createElement('span');
+			pts.className = 'pts';
+			pts.textContent = e.score;
+			li.append(name, pts);
+			return li;
+		}));
+		list.hidden = entries.length === 0;
+	}
+
+	async function loadMenuBoard() {
+		try {
+			const data = await leaderboard.top(5);
+			renderBoard(ui.menuBoard, data.entries, store.get('sevux-pseudo', ''));
+			ui.menuBoardWrap.hidden = data.entries.length === 0;
+		} catch (e) {
+			ui.menuBoardWrap.hidden = true;
+		}
+	}
+
+	function setFormMessage(text, kind = '') {
+		ui.formMsg.textContent = text;
+		ui.formMsg.className = 'form-msg' + (kind ? ' ' + kind : '');
+	}
+
+	let lastResult = null;
+
+	async function submitScore(e) {
+		e.preventDefault();
+		if (!lastResult || lastResult.sent) return;
+		const name = ui.pseudo.value.normalize('NFC').replace(/\s+/g, ' ').trim();
+		if (!NAME_PATTERN.test(name)) {
+			setFormMessage('2 à 16 caractères : lettres, chiffres, espace, _ . -', 'error');
+			ui.pseudo.focus();
+			return;
+		}
+		ui.saveScore.disabled = true;
+		setFormMessage('Envoi…');
+		try {
+			const data = await leaderboard.submit({ name, ...lastResult });
+			lastResult.sent = true;
+			store.set('sevux-pseudo', name);
+			ui.pseudo.disabled = true;
+			setFormMessage(data.improved ? `Bien joué ${name}, tu es #${data.rank} !` : `Ton meilleur score reste #${data.rank}.`, 'ok');
+			renderBoard(ui.endBoard, data.entries, name);
+			audio.play('combo');
+			if (window.parent !== window) window.parent.postMessage({ type: 'sevux:score', rank: data.rank }, '*');
+		} catch (err) {
+			ui.saveScore.disabled = false;
+			setFormMessage(err.status ? err.message : 'Classement indisponible pour le moment.', 'error');
+		}
+	}
+
+	function resetScoreForm(score, accuracy, won) {
+		lastResult = score > 0 ? { score, level, accuracy, won, sent: false } : null;
+		ui.scoreForm.hidden = !lastResult;
+		ui.pseudo.disabled = false;
+		ui.pseudo.value = store.get('sevux-pseudo', '');
+		ui.saveScore.disabled = false;
+		ui.endBoard.hidden = true;
+		setFormMessage('');
+	}
 
 	// ------------------------------------------------------------ audio synthétisé
 	const audio = {
@@ -403,9 +495,11 @@
 		if (game.score > best) { best = game.score; store.set('sevux-best', String(best)); }
 		ui.endTitle.textContent = won ? 'VICTOIRE' : 'GAME OVER';
 		ui.endSticker.textContent = won ? 'boss vaincu' : 'zone envahie';
+		const accuracy = game.shots ? Math.round((game.hits / game.shots) * 100) : 0;
 		ui.endScore.textContent = game.score;
-		ui.endAcc.textContent = (game.shots ? Math.round((game.hits / game.shots) * 100) : 0) + '%';
+		ui.endAcc.textContent = accuracy + '%';
 		ui.endBest.textContent = best;
+		resetScoreForm(game.score, accuracy, won);
 		show(ui.end);
 		game.state = 'over';
 	}
@@ -790,6 +884,7 @@
 		ui.bestMenu.textContent = best;
 		game.state = 'menu'; game.boss = null; game.targets = []; game.banner = null;
 		show(ui.menu);
+		loadMenuBoard();
 	}
 
 	function togglePause() {
@@ -804,16 +899,20 @@
 	ui.resume.addEventListener('click', togglePause);
 	ui.quit.addEventListener('click', toMenu);
 	ui.mute.addEventListener('click', () => { audio.init(); audio.toggle(); });
+	ui.scoreForm.addEventListener('submit', submitScore);
+
+	const isTyping = (e) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
 
 	const KEYS = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'fire', Space: 'fire', KeyW: 'fire' };
 	window.addEventListener('keydown', (e) => {
+		if (isTyping(e)) return;
 		if (KEYS[e.code]) { input[KEYS[e.code]] = true; e.preventDefault(); }
 		if (e.repeat) return;
 		if (e.code === 'Enter') { if (game.state === 'menu' || game.state === 'over') start(); }
 		if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
 		if (e.code === 'KeyM') { audio.init(); audio.toggle(); }
 	});
-	window.addEventListener('keyup', (e) => { if (KEYS[e.code]) input[KEYS[e.code]] = false; });
+	window.addEventListener('keyup', (e) => { if (!isTyping(e) && KEYS[e.code]) input[KEYS[e.code]] = false; });
 
 	function aimAt(e) {
 		const r = canvas.getBoundingClientRect();
@@ -834,9 +933,22 @@
 	let resizeRaf = 0;
 	window.addEventListener('resize', () => { cancelAnimationFrame(resizeRaf); resizeRaf = requestAnimationFrame(resize); });
 
+	// Point d'entrée de test, uniquement en local avec ?debug
+	if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has('debug')) {
+		window.__sevux = {
+			end(score = 4200, won = true) {
+				hide(ui.menu);
+				game.score = score; game.shots = 40; game.hits = 25; game.lives = won ? 1 : 0;
+				game.state = won ? 'won' : 'lost';
+				showEnd();
+			},
+		};
+	}
+
 	// ------------------------------------------------------------ démarrage
 	selectLevel(level);
 	ui.bestMenu.textContent = best;
+	loadMenuBoard();
 	initClouds();
 	resize();
 	if (document.fonts && document.fonts.ready) document.fonts.ready.then(buildSprites);

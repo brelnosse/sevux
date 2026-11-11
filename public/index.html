@@ -31,7 +31,11 @@
 					<li><kbd>↑</kbd><kbd>Espace</kbd> ou clic : tirer</li>
 					<li><kbd>P</kbd> pause &nbsp;·&nbsp; <kbd>M</kbd> son</li>
 				</ul>
-				<p class="best">Record : <b id="bestMenu">0</b></p>
+				<p class="best">Ton record : <b id="bestMenu">0</b></p>
+				<div class="board-wrap" id="menuBoardWrap" hidden>
+					<h3 class="board-title">Hall of fame</h3>
+					<ol class="board" id="menuBoard"></ol>
+				</div>
 			</div>
 		</section>
 
@@ -52,6 +56,15 @@
 					<div><span>Précision</span><b id="endAcc">0%</b></div>
 					<div><span>Record</span><b id="endBest">0</b></div>
 				</div>
+				<form class="score-form" id="scoreForm" novalidate>
+					<label for="pseudo">Inscris ton score au hall of fame</label>
+					<div class="score-row">
+						<input id="pseudo" name="pseudo" maxlength="16" autocomplete="nickname" spellcheck="false" placeholder="Ton pseudo" required>
+						<button class="btn btn-save" id="saveScore" type="submit">OK</button>
+					</div>
+					<p class="form-msg" id="formMsg" role="status" aria-live="polite"></p>
+				</form>
+				<ol class="board" id="endBoard" hidden></ol>
 				<button class="btn btn-play" id="restart">Rejouer</button>
 				<button class="btn btn-ghost" id="toMenu">Changer de difficulté</button>
 			</div>
