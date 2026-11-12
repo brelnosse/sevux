@@ -1,8 +1,8 @@
 // Rendu canvas : décor, cibles, boss, tourelle, effets et interface en jeu.
-import { W, H, DANGER_Y, TURRET_X, TURRET_Y, BARREL_LEN, TARGET_R, BOSS_R, BULLET_R, TARGET_COUNT, COL, FONT, DIFF, settings } from './config.js';
+import { W, H, DANGER_Y, TURRET_X, TURRET_Y, BARREL_LEN, TARGET_R, BOSS_R, BULLET_R, COL, FONT, DIFF, WAVES, settings } from './config.js';
 import { ctx } from './dom.js';
 import { view, sprites, circle } from './sprites.js';
-import { game, bullets, parts, rings, texts, multiplier } from './state.js';
+import { game, bullets, hostiles, parts, rings, texts, multiplier } from './state.js';
 
 export function render() {
 	const k = view.scale * view.dpr;
@@ -15,6 +15,7 @@ export function render() {
 	drawTargets();
 	drawBossSprite();
 	drawBullets();
+	drawHostiles();
 	drawTurret();
 	drawParticles();
 	drawRings();
@@ -41,16 +42,59 @@ function drawClouds() {
 }
 
 function drawTargets() {
-	const fs = TARGET_R * 2 + 18;
 	for (const t of game.targets) {
+		const fs = (TARGET_R * 2 + 18) * (t.r / TARGET_R);
 		if (!t.alive || t.y < -fs) continue;
 		const mood = t.blink < 0 ? 'blink' : (t.y > DANGER_Y - 170 ? 'scared' : 'idle');
 		const spr = sprites.faces[t.color][mood];
+		const charging = t.shoots && t.fireT < 0.35 && t.y > 40;
 		ctx.save();
 		ctx.translate(t.x, t.y);
-		ctx.rotate(t.wob + (mood === 'scared' ? Math.sin(game.time * 40) * 0.06 : 0));
-		ctx.drawImage(spr, -fs / 2 + 3, -fs / 2 + 3, fs, fs);
+		ctx.rotate(t.wob + (mood === 'scared' || charging ? Math.sin(game.time * 40) * 0.06 : 0));
+		if (charging) {
+			// le tireur clignote juste avant de tirer : le joueur peut anticiper
+			ctx.fillStyle = Math.sin(game.time * 50) > 0 ? COL.red : COL.yellow;
+			circle(ctx, 0, 0, t.r + 7); ctx.fill();
+		}
+		ctx.drawImage(spr, -fs / 2 + 3 * (t.r / TARGET_R), -fs / 2 + 3 * (t.r / TARGET_R), fs, fs);
+		if (t.kind === 'armored' && t.hp > 1) drawHelmet(t.r);
+		if (t.kind === 'shooter') drawCannon(t.r);
+		if (t.hitT > 0) { ctx.globalAlpha = 0.6; ctx.fillStyle = COL.white; circle(ctx, 0, 0, t.r); ctx.fill(); ctx.globalAlpha = 1; }
 		ctx.restore();
+	}
+}
+
+function drawHelmet(r) {
+	ctx.lineWidth = 4; ctx.strokeStyle = COL.ink; ctx.fillStyle = '#8a8f99';
+	ctx.beginPath(); ctx.arc(0, -2, r + 4, Math.PI * 1.05, Math.PI * 1.95); ctx.lineTo(r * 0.75, -r * 0.35); ctx.lineTo(-r * 0.75, -r * 0.35); ctx.closePath();
+	ctx.fill(); ctx.stroke();
+	ctx.fillStyle = COL.ink; [-0.45, 0, 0.45].forEach((k) => { circle(ctx, k * r, -r * 0.62, 2.5); ctx.fill(); });
+}
+
+function drawCannon(r) {
+	ctx.fillStyle = COL.ink; ctx.fillRect(-6, r - 4, 12, 12);
+	ctx.fillStyle = COL.coral; ctx.fillRect(-4, r - 2, 8, 9);
+}
+
+function drawHostiles() {
+	for (const h of hostiles) {
+		if (h.type === 'shot') {
+			ctx.strokeStyle = 'rgba(255,127,92,.45)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+			ctx.beginPath(); ctx.moveTo(h.x - h.vx * 0.05, h.y - h.vy * 0.05); ctx.lineTo(h.x, h.y); ctx.stroke();
+			ctx.fillStyle = COL.ink; circle(ctx, h.x + 2, h.y + 2, h.r); ctx.fill();
+			ctx.fillStyle = COL.coral; circle(ctx, h.x, h.y, h.r); ctx.fill();
+			ctx.lineWidth = 3; ctx.strokeStyle = COL.ink; ctx.stroke();
+			ctx.fillStyle = COL.white; circle(ctx, h.x - 3, h.y - 3, 2.5); ctx.fill();
+		} else {
+			ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(h.t * 3);
+			ctx.fillStyle = COL.ink; circle(ctx, 3, 3, h.r); ctx.fill();
+			ctx.fillStyle = '#2b2b2b'; circle(ctx, 0, 0, h.r); ctx.fill();
+			ctx.lineWidth = 3; ctx.strokeStyle = COL.ink; ctx.stroke();
+			ctx.fillStyle = COL.white; circle(ctx, -4, -4, 3); ctx.fill();
+			ctx.strokeStyle = COL.ink; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -h.r); ctx.lineTo(4, -h.r - 7); ctx.stroke();
+			ctx.fillStyle = Math.sin(h.t * 30) > 0 ? COL.yellow : COL.coral; circle(ctx, 5, -h.r - 9, 4); ctx.fill();
+			ctx.restore();
+		}
 	}
 }
 
@@ -58,13 +102,15 @@ function drawBossSprite() {
 	const boss = game.boss;
 	if (!boss) return;
 	const [bw, bh] = sprites.boss.size;
-	const spr = boss.hitT > 0 ? sprites.boss.flash : (boss.rage ? sprites.boss.rage : sprites.boss.normal);
+	const calm = boss.kind === 'mini' ? sprites.boss.mini : sprites.boss.normal;
+	const spr = boss.hitT > 0 ? sprites.boss.flash : (boss.rage ? sprites.boss.rage : calm);
 	const sq = 1 + Math.sin(boss.wob) * 0.04;
+	const k = boss.r / BOSS_R;
 	ctx.save();
 	ctx.translate(boss.x, boss.y);
 	if (game.state === 'bossDying') ctx.translate((Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10);
 	ctx.rotate(Math.sin(boss.wob * 0.5) * 0.08);
-	ctx.scale(sq, 2 - sq);
+	ctx.scale(sq * k, (2 - sq) * k);
 	ctx.drawImage(spr, -bw / 2 + 4, -(bh - BOSS_R - 14), bw, bh);
 	ctx.restore();
 }
@@ -206,14 +252,13 @@ function drawHud() {
 		box(bx, 78, bw, 22, COL.white);
 		ctx.fillStyle = b.rage ? COL.purple : COL.coral;
 		ctx.fillRect(bx + 3, 81, Math.max(0, (bw - 6) * (b.hp / b.max)), 16);
-		ctx.textAlign = 'center'; ctx.font = `11px ${FONT}`; ctx.fillStyle = COL.ink; ctx.fillText('BOSS', W / 2, 90);
-	} else {
-		const left = game.targets.filter((t) => t.alive).length;
-		box(W / 2 - 60, 14, 120, 40, COL.mint);
-		ctx.textAlign = 'center'; ctx.fillStyle = COL.ink;
-		ctx.font = `10px ${FONT}`; ctx.fillText('CIBLES', W / 2, 26);
-		ctx.font = `17px ${FONT}`; ctx.fillText(`${TARGET_COUNT - left}/${TARGET_COUNT}`, W / 2, 43);
+		ctx.textAlign = 'center'; ctx.font = `11px ${FONT}`; ctx.fillStyle = COL.ink; ctx.fillText(b.label, W / 2, 90);
 	}
+	const left = game.targets.filter((t) => t.alive).length;
+	box(W / 2 - 66, 14, 132, 40, game.boss ? COL.coral : COL.mint);
+	ctx.textAlign = 'center'; ctx.fillStyle = COL.ink;
+	ctx.font = `10px ${FONT}`; ctx.fillText(`VAGUE ${game.wave + 1}/${WAVES.length}`, W / 2, 26);
+	ctx.font = `17px ${FONT}`; ctx.fillText(game.boss ? 'BOSS' : `${game.waveTotal - left}/${game.waveTotal}`, W / 2, 43);
 }
 
 function drawBanner() {

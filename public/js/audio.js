@@ -58,6 +58,9 @@ export const audio = {
 			case 'win': [523, 659, 784, 1047, 1319].forEach((f, i) => this.tone('square', f, f, 0.16, 0.14, i * 0.11)); break;
 			case 'lose': [440, 370, 311, 220].forEach((f, i) => this.tone('triangle', f, f * 0.97, 0.25, 0.25, i * 0.18)); break;
 			case 'click': this.tone('square', 600, 900, 0.05, 0.1); break;
+			case 'enemyShot': this.tone('sawtooth', 340, 120, 0.12, 0.12); break;
+			case 'clang': this.tone('square', 1200, 900, 0.06, 0.15); this.tone('triangle', 2400, 1800, 0.08, 0.08); break;
+			case 'bomb': this.tone('sine', 220, 90, 0.25, 0.25); break;
 			default: break;
 		}
 	},

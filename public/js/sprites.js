@@ -1,5 +1,5 @@
 // Sprites pré-rendus dans des canvas hors écran, redessinés seulement au redimensionnement.
-import { W, H, DANGER_Y, TARGET_R, BOSS_R, COL, TARGET_COLORS } from './config.js';
+import { W, H, DANGER_Y, TARGET_R, BOSS_R, COL, FACE_COLORS } from './config.js';
 import { canvas } from './dom.js';
 
 /** Échelle d'affichage et densité de pixels, mises à jour par resize(). */
@@ -94,7 +94,7 @@ function drawBackground(g) {
 
 export function buildSprites() {
 	const fs = TARGET_R * 2 + 18;
-	TARGET_COLORS.forEach((c) => {
+	FACE_COLORS.forEach((c) => {
 		sprites.faces[c] = {};
 		['idle', 'blink', 'scared'].forEach((m) => {
 			sprites.faces[c][m] = makeSprite(fs, fs, (g) => drawFace(g, fs / 2 - 3, fs / 2 - 3, TARGET_R, c, m));
@@ -103,6 +103,7 @@ export function buildSprites() {
 	const bw = BOSS_R * 2 + 40, bh = BOSS_R * 3 + 20;
 	sprites.boss.size = [bw, bh];
 	sprites.boss.normal = makeSprite(bw, bh, (g) => drawBoss(g, bw / 2 - 4, bh - BOSS_R - 14, BOSS_R, COL.coral, 'normal'));
+	sprites.boss.mini = makeSprite(bw, bh, (g) => drawBoss(g, bw / 2 - 4, bh - BOSS_R - 14, BOSS_R, COL.blue, 'normal'));
 	sprites.boss.rage = makeSprite(bw, bh, (g) => drawBoss(g, bw / 2 - 4, bh - BOSS_R - 14, BOSS_R, COL.purple, 'rage'));
 	sprites.boss.flash = makeSprite(bw, bh, (g) => drawBoss(g, bw / 2 - 4, bh - BOSS_R - 14, BOSS_R, COL.white, 'flash'));
 	sprites.bg = makeSprite(W, H, drawBackground);
