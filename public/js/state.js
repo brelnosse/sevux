@@ -1,5 +1,5 @@
-// État de la partie, pools d'objets et effets visuels.
-import { W, DIFF, COL, TARGET_COUNT, TARGET_COLORS, settings } from './config.js';
+// État de la partie, pools d'objets, vagues et effets visuels.
+import { W, DIFF, COL, KINDS, WAVES, TARGET_COLORS, KIND_COLORS, settings } from './config.js';
 
 // ------------------------------------------------------------ pools (aucune allocation pendant le jeu)
 const MAX_PARTS = 600;
@@ -14,38 +14,62 @@ export function spawnPart(x, y, vx, vy, life, size, color, grav = 600, shape = 0
 }
 
 export const bullets = Array.from({ length: 40 }, () => ({ alive: false, trail: [] }));
+/** Projectiles ennemis : tirs des ennemis (shot) et bombes des boss (bomb). Abattables. */
+export const hostiles = [];
 export const rings = [];
 export const texts = [];
 
 // ------------------------------------------------------------ état
 export const game = {
 	state: 'menu', time: 0, score: 0, lives: 3, combo: 0, shots: 0, hits: 0,
-	angle: 0, recoil: 0, cooldown: 0, shake: 0, flash: 0, flashColor: COL.white, freeze: 0,
-	targets: [], boss: null, banner: null, endTimer: 0, dance: 0, clouds: [],
+	angle: 0, recoil: 0, cooldown: 0, fireQueue: 0, shake: 0, flash: 0, flashColor: COL.white, freeze: 0,
+	wave: 0, waveTotal: 0, targets: [], boss: null, banner: null, endTimer: 0, dance: 0, clouds: [],
 };
 
-export const input = { left: false, right: false, fire: false, pointerFire: false, pointerAim: false };
+export const input = { left: false, right: false, pointerAim: false };
+
+function pickKind(weights) {
+	let roll = Math.random();
+	for (const [kind, weight] of Object.entries(weights)) {
+		roll -= weight;
+		if (roll <= 0) return kind;
+	}
+	return 'normal';
+}
+
+/** Lance la vague `index` : ennemis échelonnés au-dessus de l'écran, de plus en plus denses et rapides. */
+export function startWave(index) {
+	const d = DIFF[settings.level];
+	const w = WAVES[index];
+	game.wave = index;
+	game.waveTotal = w.count;
+	game.targets = [];
+	for (let i = 0; i < w.count; i++) {
+		const kind = pickKind(w.kinds);
+		const k = KINDS[kind];
+		const baseX = 50 + Math.random() * (W - 100);
+		game.targets.push({
+			alive: true, kind, r: k.r, hp: k.hp, points: k.points, shoots: k.shoots,
+			baseX, x: baseX, y: -50 - i * w.spacing - Math.random() * 40,
+			vy: (d.fall[0] + Math.random() * (d.fall[1] - d.fall[0])) * w.speed * k.speed,
+			phase: Math.random() * 6.28, sway: (10 + Math.random() * 16) * k.sway,
+			color: KIND_COLORS[kind] || TARGET_COLORS[i % TARGET_COLORS.length],
+			blink: 1 + Math.random() * 3, wob: 0, hitT: 0,
+			fireT: d.fireEvery * (0.6 + Math.random() * 0.8),
+		});
+	}
+	setBanner(`VAGUE ${index + 1}`, COL.mint, 1.3);
+}
 
 export function resetRound() {
-	const d = DIFF[settings.level];
 	Object.assign(game, {
-		time: 0, score: 0, lives: d.lives, combo: 0, shots: 0, hits: 0, angle: 0, recoil: 0, cooldown: 0,
-		shake: 0, flash: 0, freeze: 0, boss: null, banner: null, endTimer: 0, dance: 0,
+		time: 0, score: 0, lives: DIFF[settings.level].lives, combo: 0, shots: 0, hits: 0, angle: 0, recoil: 0,
+		cooldown: 0, fireQueue: 0, shake: 0, flash: 0, freeze: 0, boss: null, banner: null, endTimer: 0, dance: 0,
 	});
 	bullets.forEach((b) => { b.alive = false; });
 	parts.forEach((p) => { p.alive = false; });
-	rings.length = 0; texts.length = 0;
-	game.targets = [];
-	for (let i = 0; i < TARGET_COUNT; i++) {
-		const baseX = 50 + Math.random() * (W - 100);
-		game.targets.push({
-			alive: true, baseX, x: baseX, y: -50 - i * 62 - Math.random() * 40,
-			vy: d.fall[0] + Math.random() * (d.fall[1] - d.fall[0]),
-			phase: Math.random() * 6.28, sway: 10 + Math.random() * 16,
-			color: TARGET_COLORS[i % TARGET_COLORS.length], blink: 1 + Math.random() * 3, wob: 0,
-		});
-	}
-	setBanner('VAGUE 1', COL.mint, 1.3);
+	hostiles.length = 0; rings.length = 0; texts.length = 0;
+	startWave(0);
 }
 
 export function initClouds() {

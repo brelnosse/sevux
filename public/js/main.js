@@ -2,12 +2,12 @@
  *  Point d'entrée : boucle requestAnimationFrame, interface (menus, pause, fin) et contrôles.
  *  Canvas 2D, sprites pré-rendus, pools d'objets et sons synthétisés : aucun asset à télécharger.
  */
-import { W, H, TURRET_X, TURRET_Y, MAX_ANGLE, store, settings } from './config.js';
+import { W, H, TURRET_X, TURRET_Y, MAX_ANGLE, WAVES, store, settings } from './config.js';
 import { canvas, ui, show, hide } from './dom.js';
 import { audio } from './audio.js';
 import { resize, buildSprites } from './sprites.js';
-import { game, input, resetRound, initClouds } from './state.js';
-import { update, hooks } from './logic.js';
+import { game, input, hostiles, resetRound, initClouds } from './state.js';
+import { update, hooks, queueFire } from './logic.js';
 import { render } from './render.js';
 import { loadMenuBoard, submitScore, resetScoreForm } from './leaderboard.js';
 
@@ -16,7 +16,7 @@ function showEnd() {
 	const won = game.state === 'won';
 	if (game.score > settings.best) { settings.best = game.score; store.set('sevux-best', String(settings.best)); }
 	ui.endTitle.textContent = won ? 'VICTOIRE' : 'GAME OVER';
-	ui.endSticker.textContent = won ? 'boss vaincu' : 'zone envahie';
+	ui.endSticker.textContent = won ? 'boss final vaincu' : `zone envahie · vague ${game.wave + 1}/${WAVES.length}`;
 	const accuracy = game.shots ? Math.round((game.hits / game.shots) * 100) : 0;
 	ui.endScore.textContent = game.score;
 	ui.endAcc.textContent = accuracy + '%';
@@ -76,17 +76,22 @@ ui.scoreForm.addEventListener('submit', submitScore);
 
 // ------------------------------------------------------------ clavier
 const isTyping = (e) => e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
-const KEYS = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'fire', Space: 'fire', KeyW: 'fire' };
+const AIM_KEYS = { ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right' };
+const FIRE_KEYS = ['ArrowUp', 'Space', 'KeyW'];
+const inGame = () => ['playing', 'bossIntro', 'bossDying'].includes(game.state);
 
 window.addEventListener('keydown', (e) => {
 	if (isTyping(e)) return;
-	if (KEYS[e.code]) { input[KEYS[e.code]] = true; e.preventDefault(); }
+	if (AIM_KEYS[e.code]) { input[AIM_KEYS[e.code]] = true; e.preventDefault(); }
+	if (FIRE_KEYS.includes(e.code)) e.preventDefault();
+	// coup par coup : maintenir la touche ne tire pas en rafale (répétition clavier ignorée)
 	if (e.repeat) return;
+	if (FIRE_KEYS.includes(e.code) && inGame()) queueFire();
 	if (e.code === 'Enter' && (game.state === 'menu' || game.state === 'over')) start();
 	if (e.code === 'KeyP' || e.code === 'Escape') togglePause();
 	if (e.code === 'KeyM') { audio.init(); audio.toggle(); }
 });
-window.addEventListener('keyup', (e) => { if (!isTyping(e) && KEYS[e.code]) input[KEYS[e.code]] = false; });
+window.addEventListener('keyup', (e) => { if (!isTyping(e) && AIM_KEYS[e.code]) input[AIM_KEYS[e.code]] = false; });
 
 // ------------------------------------------------------------ souris / tactile
 function aimAt(e) {
@@ -95,13 +100,17 @@ function aimAt(e) {
 	game.angle = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, Math.atan2(x - TURRET_X, TURRET_Y - y)));
 	input.pointerAim = true;
 }
-canvas.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || input.pointerFire) aimAt(e); });
-canvas.addEventListener('pointerdown', (e) => { audio.init(); aimAt(e); input.pointerFire = true; canvas.setPointerCapture(e.pointerId); });
-const stopFire = () => { input.pointerFire = false; };
-canvas.addEventListener('pointerup', stopFire);
-canvas.addEventListener('pointercancel', stopFire);
+let pointerDown = false;
+canvas.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || pointerDown) aimAt(e); });
+canvas.addEventListener('pointerdown', (e) => {
+	audio.init(); aimAt(e); pointerDown = true; canvas.setPointerCapture(e.pointerId);
+	if (inGame()) queueFire(); // un clic ou un toucher = un tir
+});
+const release = () => { pointerDown = false; };
+canvas.addEventListener('pointerup', release);
+canvas.addEventListener('pointercancel', release);
 
-window.addEventListener('blur', () => { input.left = input.right = input.fire = input.pointerFire = false; if (game.state !== 'paused') togglePause(); });
+window.addEventListener('blur', () => { input.left = input.right = false; pointerDown = false; if (game.state !== 'paused') togglePause(); });
 document.addEventListener('visibilitychange', () => { running = !document.hidden; last = performance.now(); });
 
 let resizeRaf = 0;
@@ -110,6 +119,11 @@ window.addEventListener('resize', () => { cancelAnimationFrame(resizeRaf); resiz
 // Point d'entrée de test, uniquement en local avec ?debug
 if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && new URLSearchParams(location.search).has('debug')) {
 	window.__sevux = {
+		state: () => ({ state: game.state, wave: game.wave + 1, left: game.targets.filter((t) => t.alive).length, boss: game.boss && { kind: game.boss.kind, hp: game.boss.hp, r: game.boss.r }, lives: game.lives, score: game.score, shots: game.shots, hostiles: hostiles.length, shooters: game.targets.filter((t) => t.alive && t.shoots).map((t) => [Math.round(t.y), +t.fireT.toFixed(2)]) }),
+		clearWave() { game.targets.forEach((t) => { t.alive = false; }); },
+		tick(seconds = 1) { for (let t = 0; t < seconds; t += 1 / 60) update(1 / 60); render(); return this.state(); },
+		weakenBoss() { if (game.boss) game.boss.hp = 1; },
+		killBoss() { if (game.boss) { game.boss.hp = 0; game.boss.entering = false; game.boss.dying = 0.01; game.state = 'bossDying'; } },
 		end(score = 4200, won = true) {
 			hide(ui.menu);
 			game.score = score; game.shots = 40; game.hits = 25; game.lives = won ? 1 : 0;

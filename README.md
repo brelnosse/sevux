@@ -6,11 +6,22 @@ Mini-jeu de tir dans le navigateur, en HTML, CSS et JavaScript vanilla (canvas 2
 
 ## Le jeu
 
-Tu contrôles une tourelle en bas de l'écran. Une vague de 10 cibles descend : détruis-les avant qu'elles franchissent la bande de danger. Quand la vague est nettoyée, le **boss final** arrive. Il zigzague, descend à chaque rebond et devient **enragé** (plus rapide) à mi-vie.
+Tu contrôles une tourelle en bas de l'écran. **Trois vagues** d'ennemis descendent, chacune plus dense et plus rapide que la précédente : détruis-les avant qu'ils franchissent la bande de danger. Chaque vague se termine par un boss : **deux mini-boss**, puis le **boss final**, qui devient **enragé** (plus rapide) à mi-vie.
+
+| Ennemi | Comportement |
+|---|---|
+| Classique (jaune / menthe) | descend en ondulant |
+| Rapide (rose) | plus petit, plus vif, ondule davantage |
+| Blindé (bleu) | casque : il faut deux tirs |
+| Tireur (corail) | clignote puis tire un projectile vers la tourelle |
+| Boss | zigzague, descend à chaque rebond, largue des bombes à partir du deuxième |
+
+Les projectiles et les bombes ennemis doivent être abattus : s'ils atteignent la bande de danger, tu perds une vie. Chaque mini-boss vaincu rend une vie (ou 500 points si tes vies sont pleines).
 
 | Fonctionnalité | Détail |
 |---|---|
-| 3 difficultés | Facile, Normal, Difficile : vitesse de chute, nombre de vies, points de vie et vitesse du boss |
+| 3 difficultés | Facile, Normal, Difficile : vitesse de chute, cadence de tir ennemie, vitesse des projectiles, vies, points de vie et vitesse des boss |
+| Tir coup par coup | Un appui = un tir. Maintenir la touche ne tire pas en rafale : il faut viser |
 | Combos | Les tirs réussis à la suite font monter un multiplicateur (jusqu'à x5). Un tir raté le remet à zéro |
 | Effets | Particules, ondes de choc, secousse d'écran, *hit-stop*, flashs, bannières animées, confettis de victoire |
 | Score | Bonus de vies restantes, précision affichée en fin de partie, record personnel sauvegardé (localStorage) |
@@ -23,7 +34,7 @@ Tu contrôles une tourelle en bas de l'écran. Une vague de 10 cibles descend : 
 | Action | Clavier | Souris / tactile |
 |---|---|---|
 | Viser | `←` `→` (ou `A` `D`) | déplacer le pointeur |
-| Tirer | `↑`, `Espace` (ou `W`), maintenir pour un tir continu | clic / toucher (maintenir pour un tir continu) |
+| Tirer | `↑`, `Espace` (ou `W`) : un appui = un tir | clic / toucher : un tir |
 | Lancer / rejouer | `Entrée` | bouton |
 | Pause | `P` ou `Échap` | — |
 | Son | `M` | bouton ♪ |
